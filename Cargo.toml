@@ -1,0 +1,32 @@
+[package]
+name = "web-app-project"
+version = "0.1.0"
+authors = ["lizard123137 <lizard123137@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+dioxus = { version = "0.5", features = ["fullstack", "router"] }
+
+
+sqlx = { version = "0.7.4", features = [
+    "macros",
+    "migrate",
+    "postgres",
+    "sqlite",
+    "runtime-tokio"
+], optional = true }
+
+serde = "1.0.197"
+manganis = "0.2.2"
+
+axum = {version = "0.7.5", optional = true}
+tokio = { version = "1.37.0", features = ["full"], optional = true }
+dioxus-web = { version = "0.5.1", features = ["hydrate"], optional = true }
+dioxus-fullstack = "0.5.2"
+tracing = "0.1.40"
+dioxus-logger = "0.5.1"
+
+[features]
+default = []
+server = ["axum", "dioxus-fullstack/axum", "tokio", "sqlx"]
+web = ["dioxus-web"]
