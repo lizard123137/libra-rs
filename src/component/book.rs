@@ -20,12 +20,16 @@ pub fn BookIndex() -> Element {
     
     match &*books.read_unchecked() {
         Some(Ok(data)) => rsx! {
-            for book in data {
-                Link {
-                    to: Route::BookView { isbn: book.isbn.clone() },
-                    BookCard { book: book.clone() }
+            div {
+                class: "flex",
+                for book in data {
+                    Link {
+                        to: Route::BookView { isbn: book.isbn.clone() },
+                        BookCard { book: book.clone() }
+                    }
                 }
             }
+            
         },
         Some(Err(e)) => rsx! { Error { error: e.clone() } },
         None => rsx! { Loading {} },
@@ -42,21 +46,17 @@ pub fn BookCard(book: BookEntity) -> Element {
             .await
     });
 
-    let image = match &*image_future.read_unchecked() {
-        Some(Ok(response)) => rsx! {
-            img {
-                class: "object-contain w-full h-48",
-                src: "{response.image_url}",
-            }
-        },
-        _ => rsx! {},
+    let image_url = match &*image_future.read_unchecked() {
+        Some(Ok(response)) => response.image_url.clone(),
+        _ => "".to_string(),
     };
 
     rsx! {
         div {
             class: "max-w-sm rounded overflow-hidden shadow-lg bg-stone-300 dark:bg-slate-600",
-            div {
-                {image}
+            img {
+                class: "object-contain h-48",
+                src: "{image_url}",
             }
             h1 {
                 class: "font-bold text-xl mb-2",
@@ -121,13 +121,18 @@ pub async fn get_books() -> Result<Vec<BookEntity>, ServerFnError> {
 }
 
 #[server]
-pub async fn search_books() -> Result<Vec<BookEntity>, ServerFnError> {
+pub async fn add_book(book: BookEntity) -> Result<(), ServerFnError> {
     let pool = sqlx::postgres::PgPool::connect(crate::config::_DB_URL)
         .await?;
-
-    let books = sqlx::query_as::<_, BookEntity>("SELECT * FROM books")
-        .fetch_all(&pool)
-        .await?;
     
-    Ok(books) 
+    sqlx::query("INSERT INTO books(isbn, image, title, author, summary) VALUES ($1, $2, $3, $4, $5)")
+        .bind(book.isbn)
+        .bind(book.image)
+        .bind(book.title)
+        .bind(book.author)
+        .bind(book.summary)
+        .execute(&pool)
+        .await?;
+
+    Ok(())
 }

@@ -2,8 +2,8 @@ use dioxus::prelude::*;
 use std::collections::HashMap;
 
 use crate::route::Route;
+use crate::model::book::BookEntity;
 use crate::component::book::{self, BookCard};
-use crate::component::error::Error;
 
 #[component]
 pub fn NavBar() -> Element {
@@ -49,22 +49,6 @@ pub fn NavBar() -> Element {
 #[component]
 pub fn Home() -> Element {
     let mut values = use_signal(HashMap::new);
-    let books = use_resource(move || async move {
-        book::search_books().await 
-    });
-
-    let found = match &*books.read_unchecked() {
-        Some(Ok(data)) => rsx! {
-            for book in data {
-                Link {
-                    to: Route::BookView { isbn: book.isbn.clone() },
-                    BookCard { book: book.clone() }
-                }
-            }
-        },
-        Some(Err(e)) => rsx! { Error { error: e.clone()} },
-        None => rsx! {},
-    };
 
     rsx! {
         h1 {
@@ -108,8 +92,6 @@ pub fn Home() -> Element {
                 "Search"
             }
         }
-
-        {found}
 
         pre {
             "Debug: \n {values:#?}"
@@ -157,7 +139,63 @@ pub fn About() -> Element {
 #[component]
 pub fn DebugTools() -> Element {
     rsx! {
-        "Debug tools will go here"
+        h1 {
+            class: "header-text",
+            span {
+                class: "accent-text",
+                "Add Book"
+            }
+        }
+
+        form {
+            onsubmit: move |event| async move {
+                let values = event.values();
+
+                let isbn = values.get("isbn").unwrap().as_value();
+                let title = values.get("title").unwrap().as_value();
+                let author = values.get("author").unwrap().as_value();
+                let summary = values.get("summary").unwrap().as_value();
+
+                let _ = book::add_book(BookEntity {
+                    isbn: isbn,
+                    image: None,
+                    title: title,
+                    author: author,
+                    summary: summary,
+                }).await;
+            },
+
+            class: "flex flex-col gap-y-5",
+            input {
+                class: "w-full p-5 rounded text-m bg-slate-800",
+                placeholder: "ISBN",
+                name: "isbn",
+            }
+
+            input {
+                class: "w-full p-5 rounded text-m bg-slate-800",
+                placeholder: "Title",
+                name: "title",
+            }
+
+            input {
+                class: "w-full p-5 rounded text-m bg-slate-800",
+                placeholder: "Author",
+                name: "author",
+            }
+
+            input {
+                class: "w-full p-5 rounded text-m bg-slate-800",
+                placeholder: "summary",
+                name: "summary",
+            }
+
+            input {
+                class: "accent-text border-2 rounded m-2 p-4",
+                r#type: "submit",
+                "Add to database",
+            }
+        }
     }
 }
 
