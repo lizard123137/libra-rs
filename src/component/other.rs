@@ -2,7 +2,8 @@ use dioxus::prelude::*;
 use std::collections::HashMap;
 
 use crate::route::Route;
-
+use crate::component::book::{self, BookCard};
+use crate::component::error::Error;
 
 #[component]
 pub fn NavBar() -> Element {
@@ -32,6 +33,11 @@ pub fn NavBar() -> Element {
                     to: Route::About {},
                     "About us"
                 }
+                Link {
+                    class: "p-5 bg-clip-text hover:accent-text",
+                    to: Route::DebugTools {},
+                    "Debug"
+                }
             }
         }
         div {
@@ -43,13 +49,32 @@ pub fn NavBar() -> Element {
 #[component]
 pub fn Home() -> Element {
     let mut values = use_signal(HashMap::new);
+    let books = use_resource(move || async move {
+        book::search_books().await 
+    });
+
+    let found = match &*books.read_unchecked() {
+        Some(Ok(data)) => rsx! {
+            for book in data {
+                Link {
+                    to: Route::BookView { isbn: book.isbn.clone() },
+                    BookCard { book: book.clone() }
+                }
+            }
+        },
+        Some(Err(e)) => rsx! { Error { error: e.clone()} },
+        None => rsx! {},
+    };
 
     rsx! {
         h1 {
             class: "header-text mb-10",
-            "Search for "
-            span {class: "accent-text", "books"} 
-            " at any place and any time!"
+            "Search for ",
+            span {
+                class: "accent-text",
+                "books"
+            }
+            " at any place and any time!",
         }
 
         form {
@@ -83,6 +108,9 @@ pub fn Home() -> Element {
                 "Search"
             }
         }
+
+        {found}
+
         pre {
             "Debug: \n {values:#?}"
         }
@@ -104,7 +132,7 @@ pub fn About() -> Element {
     rsx! {
         h1 {
             class: "header-text",
-            "About us"
+            span { class: "accent-text", "About us"}
         }
         div {
             class: "space-y-8 mx-5",
@@ -117,11 +145,19 @@ pub fn About() -> Element {
                     li { span { class: "accent-text", "Dioxus" }" - frontend framework" }
                     li { span { class: "accent-text", "Axum" } " - backend framework" }
                     li { span { class: "accent-text", "Sqlx" } " - async SQL toolkit"}
+                    li { span { class: "accent-text", "Reqwest" } " - async http request library"}
                     li { span { class: "accent-text", "TailwindCSS" } " - CSS utility classes framework"}
                 }
             }
             p { "The visual design is heavily inspired by the tailwind website. I don't have much experience with UI design, so I needed some inspiration..."}
         }
+    }
+}
+
+#[component]
+pub fn DebugTools() -> Element {
+    rsx! {
+        "Debug tools will go here"
     }
 }
 
@@ -144,24 +180,6 @@ pub fn Loading() -> Element {
             }
             "Loading..."
         }
-    }
-}
-
-#[component]
-pub fn Error() -> Element {
-    rsx! {
-        div {
-            class: "text-center",
-            h1 {
-                class: "header-text accent-text",
-                "Error"
-            },
-            p {
-                class: "text-gray-500",
-                "Something went wrong..."
-            }
-        }
-        
     }
 }
 

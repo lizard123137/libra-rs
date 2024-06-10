@@ -1,10 +1,18 @@
 use dioxus::prelude::*;
 
 use std::env;
+use serde::Deserialize;
 
-use crate::component::other::{Loading, Error};
+use crate::component::error::Error;
+use crate::component::other::Loading;
 use crate::model::book::*;
 use crate::route::Route;
+
+#[derive(Deserialize, Debug)]
+struct ApiResponse {
+    #[serde(rename = "message")]
+    image_url: String,
+}
 
 #[component]
 pub fn BookIndex() -> Element {
@@ -19,16 +27,37 @@ pub fn BookIndex() -> Element {
                 }
             }
         },
-        Some(Err(_)) => rsx! { Error {} },
+        Some(Err(e)) => rsx! { Error { error: e.clone() } },
         None => rsx! { Loading {} },
     }
 }
 
 #[component]
 pub fn BookCard(book: BookEntity) -> Element {
+    let image_future = use_resource(|| async move {
+        reqwest::get("https://dog.ceo/api/breeds/image/random")
+            .await
+            .unwrap()
+            .json::<ApiResponse>()
+            .await
+    });
+
+    let image = match &*image_future.read_unchecked() {
+        Some(Ok(response)) => rsx! {
+            img {
+                class: "object-contain w-full h-48",
+                src: "{response.image_url}",
+            }
+        },
+        _ => rsx! {},
+    };
+
     rsx! {
         div {
             class: "max-w-sm rounded overflow-hidden shadow-lg bg-stone-300 dark:bg-slate-600",
+            div {
+                {image}
+            }
             h1 {
                 class: "font-bold text-xl mb-2",
                 "{book.title}"
@@ -45,26 +74,60 @@ pub fn BookCard(book: BookEntity) -> Element {
 }
 
 #[component]
-pub fn BookView(isbn: String) -> Element {
-    rsx! { 
-        h2 {
-            "Book of isbn: {isbn}"
-        }
+pub fn BookView(isbn: ReadOnlySignal<String>) -> Element {
+    let future = use_resource(move || async move {
+        get_book(isbn()).await
+    });
+
+    match &*future.read_unchecked() {
+        Some(Ok(book)) => rsx! {
+            h1 {
+                "{book.title}"
+            }
+            p {
+                "{book.summary}"
+            }
+        },
+        Some(Err(e)) => rsx! { Error {error: e.clone()} },
+        None => rsx! { Loading {} }
     }
 }
 
 #[server]
-async fn get_books() -> Result<Vec<BookEntity>, ServerFnError> {
-    let url = "postgres://postgres:password@localhost/librars";
-    let pool = sqlx::postgres::PgPool::connect(&url)
-        .await
-        .expect("Database connection failed!");
+pub async fn get_book(isbn: String) -> Result<BookEntity, ServerFnError> {
+    let pool = sqlx::postgres::PgPool::connect(crate::config::_DB_URL)
+        .await?;
+
+    let book = sqlx::query_as::<_, BookEntity>("SELECT * FROM books WHERE isbn = $1")
+        .bind(isbn)
+        .fetch_one(&pool)
+        .await?;
+
+    Ok(book)
+}
+
+#[server]
+pub async fn get_books() -> Result<Vec<BookEntity>, ServerFnError> {
+    let pool = sqlx::postgres::PgPool::connect(crate::config::_DB_URL)
+        .await?;
 
     let books = sqlx::query_as::<_, BookEntity>("SELECT * FROM books")
         .fetch_all(&pool)
         .await?;
 
-    tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
     
     Ok(books)
+}
+
+#[server]
+pub async fn search_books() -> Result<Vec<BookEntity>, ServerFnError> {
+    let pool = sqlx::postgres::PgPool::connect(crate::config::_DB_URL)
+        .await?;
+
+    let books = sqlx::query_as::<_, BookEntity>("SELECT * FROM books")
+        .fetch_all(&pool)
+        .await?;
+    
+    Ok(books) 
 }

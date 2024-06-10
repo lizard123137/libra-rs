@@ -1,0 +1,1 @@
+pub static _DB_URL: &str = "postgres://postgres:password@localhost/librars";

@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 #[cfg_attr(feature = "server", derive(sqlx::FromRow))]
 pub struct BookEntity {
     pub isbn: String,
+    pub image: Option<String>,
     pub title: String,
     pub author: String,
     pub summary: String,

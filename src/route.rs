@@ -10,6 +10,8 @@ pub enum Route {
             Home {},
             #[route("/about")]
             About {},
+            #[route("/debug")]
+            DebugTools {},
             #[nest("/book")]
                 #[route("/")]
                 BookIndex {},

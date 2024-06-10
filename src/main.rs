@@ -6,6 +6,7 @@ use tracing::Level;
 mod component;
 mod model;
 mod route;
+mod config;
 
 use crate::route::Route;
 

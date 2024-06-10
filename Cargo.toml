@@ -25,6 +25,7 @@ dioxus-web = { version = "0.5.1", features = ["hydrate"], optional = true }
 dioxus-fullstack = "0.5.2"
 tracing = "0.1.40"
 dioxus-logger = "0.5.1"
+reqwest = { version = "0.12.4", features = ["json"] }
 
 [features]
 default = []
